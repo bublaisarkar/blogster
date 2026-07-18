@@ -1,18 +1,16 @@
 import axios from 'axios';
 
-// ✅ Set base URL based on environment
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// ✅ Get the backend URL (without the `/api` suffix for images)
+const BACKEND_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = `${BACKEND_BASE}/api`;
 
-// ✅ Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // ✅ Important for cookies/auth
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
-// ✅ Add token interceptor
+// Request interceptor (unchanged)
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -24,9 +22,35 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Response interceptor
+// ✅ NEW: Response interceptor to sanitize blog content
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Helper to recursively sanitize any "content" fields
+    const sanitizeContent = (obj) => {
+      if (!obj) return obj;
+      if (Array.isArray(obj)) {
+        return obj.map(sanitizeContent);
+      }
+      if (typeof obj === 'object') {
+        // If this object has a 'content' property that is a string, sanitize it
+        if (obj.content && typeof obj.content === 'string') {
+          obj.content = obj.content.replace(/http:\/\/localhost:5000/g, BACKEND_BASE);
+        }
+        // Recurse into nested objects
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            obj[key] = sanitizeContent(obj[key]);
+          }
+        }
+        return obj;
+      }
+      return obj;
+    };
+
+    // Sanitize the entire response data
+    response.data = sanitizeContent(response.data);
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
