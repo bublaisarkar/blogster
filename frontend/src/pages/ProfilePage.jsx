@@ -188,7 +188,7 @@ const ProfilePage = () => {
         {/* Cover Image */}
         <div className="relative rounded-3xl overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&h=400&fit=crop&crop=center&auto=format"
+            src="/profile_pic.avif"
             alt="Cover"
             className="w-full h-48 sm:h-64 md:h-72 lg:h-80 object-cover"
           />
