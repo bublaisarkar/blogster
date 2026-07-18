@@ -328,17 +328,13 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    // ✅ Build URL with HTTPS enforcement
-    let baseUrl = process.env.BASE_URL;
-    if (!baseUrl) {
-      baseUrl = `${req.protocol}://${req.get('host')}`;
-    }
-    // Force HTTPS in production
+    // ✅ Include the "blogs" subfolder in the URL
+    let baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     if (process.env.NODE_ENV === 'production' && baseUrl.startsWith('http://')) {
       baseUrl = baseUrl.replace('http://', 'https://');
     }
 
-    const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    const avatarUrl = `${baseUrl}/uploads/blogs/${req.file.filename}`; // <-- Added "blogs/"
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
