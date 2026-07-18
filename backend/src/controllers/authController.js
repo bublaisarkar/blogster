@@ -2,7 +2,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import axios from 'axios';
+import axios from 'axios'; // ✅ For EmailJS
 
 // ============================================================
 // ✅ Helper: Generate JWT Token
@@ -316,7 +316,7 @@ export const updateSocialLinks = async (req, res) => {
 };
 
 // ============================================================
-// ✅ 7. UPLOAD AVATAR (FIXED: uses BASE_URL)
+// ✅ 7. UPLOAD AVATAR
 // ============================================================
 
 export const uploadAvatar = async (req, res) => {
@@ -328,13 +328,7 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    // ✅ Include the "blogs" subfolder in the URL
-    let baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    if (process.env.NODE_ENV === 'production' && baseUrl.startsWith('http://')) {
-      baseUrl = baseUrl.replace('http://', 'https://');
-    }
-
-    const avatarUrl = `${baseUrl}/uploads/blogs/${req.file.filename}`; // <-- Added "blogs/"
+    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
@@ -356,9 +350,8 @@ export const uploadAvatar = async (req, res) => {
 };
 
 // ============================================================
-// ✅ 8. FORGOT PASSWORD (Send Reset Email)
+// ✅ 8. FORGOT PASSWORD (Generate Reset Token & Send Email)
 // ============================================================
-
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -391,14 +384,14 @@ export const forgotPassword = async (req, res) => {
     // Build reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
-    // Send email via EmailJS
+    // ✅ Send email using EmailJS with BOTH Private Key AND Public Key
     try {
-      await axios.post(
+      const response = await axios.post(
         'https://api.emailjs.com/api/v1.0/email/send',
         {
           service_id: process.env.EMAILJS_SERVICE_ID,
           template_id: process.env.EMAILJS_PASSWORD_RESET_TEMPLATE_ID,
-          user_id: process.env.EMAILJS_PUBLIC_KEY,
+          user_id: process.env.EMAILJS_PUBLIC_KEY, // ✅ Required: Public Key
           template_params: {
             to_email: user.email,
             name: user.name,
@@ -408,16 +401,18 @@ export const forgotPassword = async (req, res) => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`,
+            'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`, // ✅ Optional but recommended
           },
         }
       );
+
       console.log(`✅ Password reset email sent to ${user.email}`);
     } catch (emailError) {
       console.error('❌ EmailJS error:', emailError.response?.data || emailError.message);
       // Don't fail the request if email fails (to avoid leaking user info)
     }
 
+    // For development, log token (optional)
     console.log(`🔑 Password reset token for ${user.email}: ${resetToken}`);
 
     res.status(200).json({
