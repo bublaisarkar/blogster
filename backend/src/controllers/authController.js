@@ -2,7 +2,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import axios from 'axios'; // ✅ For EmailJS
+import axios from 'axios';
 
 // ============================================================
 // ✅ Helper: Generate JWT Token
@@ -316,7 +316,7 @@ export const updateSocialLinks = async (req, res) => {
 };
 
 // ============================================================
-// ✅ 7. UPLOAD AVATAR
+// ✅ 7. UPLOAD AVATAR (FIXED: uses BASE_URL)
 // ============================================================
 
 export const uploadAvatar = async (req, res) => {
@@ -328,7 +328,9 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    // ✅ Use BASE_URL for consistent HTTPS in production
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
@@ -350,8 +352,9 @@ export const uploadAvatar = async (req, res) => {
 };
 
 // ============================================================
-// ✅ 8. FORGOT PASSWORD (Generate Reset Token & Send Email)
+// ✅ 8. FORGOT PASSWORD (Send Reset Email)
 // ============================================================
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -384,14 +387,14 @@ export const forgotPassword = async (req, res) => {
     // Build reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
 
-    // ✅ Send email using EmailJS with BOTH Private Key AND Public Key
+    // Send email via EmailJS
     try {
-      const response = await axios.post(
+      await axios.post(
         'https://api.emailjs.com/api/v1.0/email/send',
         {
           service_id: process.env.EMAILJS_SERVICE_ID,
           template_id: process.env.EMAILJS_PASSWORD_RESET_TEMPLATE_ID,
-          user_id: process.env.EMAILJS_PUBLIC_KEY, // ✅ Required: Public Key
+          user_id: process.env.EMAILJS_PUBLIC_KEY,
           template_params: {
             to_email: user.email,
             name: user.name,
@@ -401,18 +404,16 @@ export const forgotPassword = async (req, res) => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`, // ✅ Optional but recommended
+            'Authorization': `Bearer ${process.env.EMAILJS_PRIVATE_KEY}`,
           },
         }
       );
-
       console.log(`✅ Password reset email sent to ${user.email}`);
     } catch (emailError) {
       console.error('❌ EmailJS error:', emailError.response?.data || emailError.message);
       // Don't fail the request if email fails (to avoid leaking user info)
     }
 
-    // For development, log token (optional)
     console.log(`🔑 Password reset token for ${user.email}: ${resetToken}`);
 
     res.status(200).json({
