@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== BASE STYLES ===== */
+@layer base {
+  body {
+    @apply bg-[#faf9f6] text-[#1e1e2a] antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", 
+                 sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-[#1e1e2a];
+  }
+
+  a {
+    @apply text-[#1e1e2a];
+  }
+}
+
+/* ===== COMPONENT STYLES ===== */
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-white rounded-2xl border border-[#edebf5] shadow-sm transition-all duration-300;
+  }
+  
+  .card:hover {
+    @apply shadow-md;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-[#e6e6ed] hover:bg-[#faf9f6] text-[#1e1e2a] px-4 py-2 rounded-xl font-medium transition-all duration-200;
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-xl border border-[#e6e6ed] bg-[#faf9f6] text-[#1e1e2a] focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm;
+  }
+
+  /* Badges */
+  .badge-published {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-draft {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700;
+  }
+
+  .badge-pending {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-approved {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-spam {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700;
+  }
+
+  .badge-active {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-inactive {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700;
+  }
+
+  .badge-archived {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700;
+  }
+
+  /* Role badges */
+  .badge-admin {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700;
+  }
+
+  .badge-editor {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700;
+  }
+
+  .badge-author {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-user {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700;
+  }
+
+  /* Dropdowns */
+  .dropdown-menu {
+    @apply bg-white border border-[#e6e6ed] shadow-lg rounded-xl;
+  }
+
+  /* Modals */
+  .modal-content {
+    @apply bg-white border border-[#edebf5] rounded-3xl shadow-2xl;
+  }
+
+  /* Sidebar */
+  .sidebar-item {
+    @apply text-[#2d2d3f] hover:bg-[#f0eff5] transition;
+  }
+
+  .sidebar-item.active {
+    @apply bg-indigo-600 text-white;
+  }
+
+  /* Tables */
+  .table-row {
+    @apply hover:bg-[#f8f7fc] transition;
+  }
+
+  .table-header {
+    @apply bg-[#faf9f6] border-b border-[#e6e6ed];
+  }
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-indigo-400 rounded-full hover:bg-indigo-500 transition;
+  }
+}
