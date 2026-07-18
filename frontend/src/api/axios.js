@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // ✅ Get the backend URL (without the `/api` suffix for images)
 const BACKEND_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_URL = `${BACKEND_BASE}/api`;
+const API_URL = `${BACKEND_BASE}`;
 
 const api = axios.create({
   baseURL: API_URL,
