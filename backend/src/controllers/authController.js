@@ -328,8 +328,16 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    // ✅ Use BASE_URL for consistent HTTPS in production
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    // ✅ Build URL with HTTPS enforcement
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl) {
+      baseUrl = `${req.protocol}://${req.get('host')}`;
+    }
+    // Force HTTPS in production
+    if (process.env.NODE_ENV === 'production' && baseUrl.startsWith('http://')) {
+      baseUrl = baseUrl.replace('http://', 'https://');
+    }
+
     const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
