@@ -1,16 +1,18 @@
 import axios from 'axios';
 
-// ✅ Get the backend URL (without the `/api` suffix for images)
-const BACKEND_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_URL = `${BACKEND_BASE}`;
+// ✅ Set base URL based on environment
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// ✅ Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // ✅ Important for cookies/auth
 });
 
-// Request interceptor (unchanged)
+// ✅ Add token interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -22,35 +24,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ NEW: Response interceptor to sanitize blog content
+// ✅ Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    // Helper to recursively sanitize any "content" fields
-    const sanitizeContent = (obj) => {
-      if (!obj) return obj;
-      if (Array.isArray(obj)) {
-        return obj.map(sanitizeContent);
-      }
-      if (typeof obj === 'object') {
-        // If this object has a 'content' property that is a string, sanitize it
-        if (obj.content && typeof obj.content === 'string') {
-          obj.content = obj.content.replace(/http:\/\/localhost:5000/g, BACKEND_BASE);
-        }
-        // Recurse into nested objects
-        for (const key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            obj[key] = sanitizeContent(obj[key]);
-          }
-        }
-        return obj;
-      }
-      return obj;
-    };
-
-    // Sanitize the entire response data
-    response.data = sanitizeContent(response.data);
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
