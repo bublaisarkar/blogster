@@ -188,6 +188,7 @@ const ProfilePage = () => {
         {/* Cover Image */}
         <div className="relative rounded-3xl overflow-hidden">
           <img
+            src="/profile_pic.avif"
             alt="Cover"
             className="w-full h-48 sm:h-64 md:h-72 lg:h-80 object-cover"
           />
