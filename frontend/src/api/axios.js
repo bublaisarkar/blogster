@@ -1,16 +1,19 @@
 import axios from 'axios';
 
-// ✅ Get the backend URL (without `/api` suffix)
+// ✅ Get the backend URL (without the `/api` suffix for images)
 const BACKEND_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = `${BACKEND_BASE}/api`;
 
+// ✅ Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+  },
   withCredentials: true,
 });
 
-// Request interceptor (unchanged)
+// ✅ Add token interceptor (unchanged)
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -22,34 +25,24 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ UPDATED Response interceptor
+// ✅ CRITICAL FIX: Response interceptor to replace localhost with Render URL
 api.interceptors.response.use(
   (response) => {
+    // Helper to recursively sanitize ANY string that contains localhost:5000
     const sanitizeData = (obj) => {
       if (!obj) return obj;
-
+      
+      // If it's a string, replace the localhost URL
       if (typeof obj === 'string') {
-        let result = obj;
-
-        // 1. Replace localhost with the actual backend URL (from env)
-        result = result.replace(/http:\/\/localhost:5000/g, BACKEND_BASE);
-
-        // 2. 🔥 Force HTTPS for your Render domain
-        //    This catches any http://blogster-ocvb.onrender.com and upgrades to https://
-        //    Remove the `.replace(/^https?:\/\//, '')` part if you know the exact domain.
-        const renderDomain = BACKEND_BASE.replace(/^https?:\/\//, ''); // e.g. blogster-ocvb.onrender.com
-        result = result.replace(
-          new RegExp(`http://${renderDomain}`, 'g'),
-          `https://${renderDomain}`
-        );
-
-        return result;
+        return obj.replace(/http:\/\/localhost:5000/g, BACKEND_BASE);
       }
-
+      
+      // If it's an array, sanitize each item
       if (Array.isArray(obj)) {
         return obj.map(sanitizeData);
       }
-
+      
+      // If it's an object, sanitize every value
       if (typeof obj === 'object') {
         const newObj = {};
         for (const key in obj) {
@@ -59,10 +52,11 @@ api.interceptors.response.use(
         }
         return newObj;
       }
-
+      
       return obj;
     };
 
+    // Apply the sanitization to the entire response data
     response.data = sanitizeData(response.data);
     return response;
   },
