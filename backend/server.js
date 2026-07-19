@@ -6,6 +6,23 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './src/config/database.js';
 
+import fs from "fs";
+
+app.get("/debug/blog-files", (req, res) => {
+  const folder = path.join(__dirname, "uploads", "blogs");
+
+  if (!fs.existsSync(folder)) {
+    return res.json({
+      exists: false,
+    });
+  }
+
+  res.json({
+    exists: true,
+    files: fs.readdirSync(folder),
+  });
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
