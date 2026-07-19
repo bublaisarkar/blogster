@@ -329,7 +329,8 @@ export const uploadAvatar = async (req, res) => {
     }
 
     const avatarUrl =
-      `${req.protocol}://${req.get("host")}/uploads/blogs/${req.file.filename}`;
+      `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`;
+
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
