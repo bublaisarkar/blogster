@@ -19,7 +19,7 @@ const generateToken = (id, expiresIn = '30d') => {
 export const register = async (req, res) => {
   console.log('📝 Register controller called');
   console.log('📝 Request body:', req.body);
-  
+
   try {
     const { name, email, password } = req.body;
 
@@ -86,7 +86,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   console.log('📝 Login controller called');
   console.log('📝 Request body:', req.body);
-  
+
   try {
     const { email, password, rememberMe } = req.body;
 
@@ -328,7 +328,7 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/blogs/${req.file.filename}`;
+   const avatarUrl = `${baseUrl}/uploads/avatars/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
