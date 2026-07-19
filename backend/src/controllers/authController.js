@@ -324,31 +324,41 @@ export const uploadAvatar = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'No file uploaded'
+        message: "No file uploaded",
       });
     }
 
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/blogs/${req.file.filename}`;
+    const avatarUrl = `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { avatar: avatarUrl },
       { new: true }
-    ).select('-password');
+    ).select("-password");
 
-    res.status(200).json({
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      data: { avatar: user.avatar }
+      message: "Avatar updated successfully",
+      data: {
+        avatar: user.avatar,
+      },
     });
   } catch (error) {
-    console.error('❌ Avatar upload error:', error);
-    res.status(500).json({
+    console.error("❌ Avatar upload error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
-
 // ============================================================
 // ✅ 8. FORGOT PASSWORD (Generate Reset Token & Send Email)
 // ============================================================
