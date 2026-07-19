@@ -321,36 +321,35 @@ export const updateSocialLinks = async (req, res) => {
 
 export const uploadAvatar = async (req, res) => {
   try {
-    console.log("========== AVATAR ==========");
-    console.log(req.file);
-
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "No file uploaded",
+        message: 'No file uploaded'
       });
     }
 
-    const avatarUrl = `${VITE_API_URL}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl =
+      `${req.protocol}://${req.get("host")}/uploads/blogs/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { avatar: avatarUrl },
       { new: true }
-    ).select("-password");
+    ).select('-password');
 
     res.status(200).json({
       success: true,
-      data: { avatar: user.avatar },
+      data: { avatar: user.avatar }
     });
   } catch (error) {
-    console.error("❌ Avatar upload error:", error);
+    console.error('❌ Avatar upload error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
+
 // ============================================================
 // ✅ 8. FORGOT PASSWORD (Generate Reset Token & Send Email)
 // ============================================================
