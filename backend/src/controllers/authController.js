@@ -331,7 +331,7 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    const avatarUrl = `${baseUrl}/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = `${VITE_API_URL}/uploads/avatars/${req.file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
