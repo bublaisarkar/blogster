@@ -2,12 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import connectDB from './src/config/database.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -52,8 +48,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Serve uploaded files (avatars, etc.)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ Routes
 import authRoutes from './src/routes/authRoutes.js';
@@ -91,8 +85,4 @@ app.use((req, res) => {
 import errorHandler from './src/middleware/errorHandler.js';
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 http://localhost:${PORT}`);
-});
+export default app;

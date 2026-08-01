@@ -328,9 +328,8 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    const avatarUrl =
-      `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`;
-
+    // Cloudinary URL is directly available in req.file.path
+    const avatarUrl = req.file.path;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

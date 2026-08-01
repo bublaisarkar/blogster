@@ -1,75 +1,29 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../config/cloudinary.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Upload directories
-const uploadDir = path.join(__dirname, '../../uploads');
-const blogsDir = path.join(uploadDir, 'blogs');
-
-// Ensure directories exist
-const createDirIfNotExists = (dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-};
-
-createDirIfNotExists(uploadDir);
-createDirIfNotExists(blogsDir);
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, blogsDir);
+// Cloudinary storage for blog images
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'blogster/blogs', // Folder in Cloudinary
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 1200, height: 800, crop: 'limit' }],
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-
-    cb(null, `blog-${uniqueSuffix}${ext}`);
-  }
 });
 
-// File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp'
-  ];
-
-  const allowedExtensions = [
-    '.jpeg',
-    '.jpg',
-    '.png',
-    '.gif',
-    '.webp'
-  ];
-
-  const ext = path.extname(file.originalname).toLowerCase();
-
-  if (
-    allowedTypes.includes(file.mimetype) &&
-    allowedExtensions.includes(ext)
-  ) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only images are allowed (JPEG, JPG, PNG, GIF, WebP)'));
-  }
+  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  const extname = allowedTypes.test(file.originalname.toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+  if (extname && mimetype) return cb(null, true);
+  cb(new Error('Only image files are allowed!'));
 };
 
-// Multer instance
 const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-  fileFilter,
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: fileFilter,
 });
 
 export default upload;

@@ -3,12 +3,7 @@ import Blog from '../models/Blog.js';
 import Category from '../models/Category.js';
 import slugify from 'slugify';
 import mongoose from 'mongoose';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ============================================================
 // ✅ IMAGE UPLOAD
@@ -21,7 +16,6 @@ const __dirname = path.dirname(__filename);
  */
 export const uploadImage = async (req, res) => {
   try {
-    // ✅ Check if file exists
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -29,11 +23,9 @@ export const uploadImage = async (req, res) => {
       });
     }
 
-    // ✅ Get the uploaded file URL
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
-    const imageUrl = `${baseUrl}/uploads/blogs/${req.file.filename}`;
-    
-    // ✅ Return the image URL
+    // Cloudinary URL is available in req.file.path
+    const imageUrl = req.file.path;
+
     res.status(200).json({
       success: true,
       data: {
@@ -45,22 +37,12 @@ export const uploadImage = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Image upload error:', error);
-    
-    // ✅ Clean up uploaded file if error occurs
-    if (req.file) {
-      const filePath = path.join(__dirname, '../uploads/blogs', req.file.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-    
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to upload image'
     });
   }
 };
-
 // ============================================================
 // ✅ BLOG CRUD OPERATIONS
 // ============================================================
