@@ -40,6 +40,8 @@ router.get('/slug/:slug', getBlogBySlug);
 router.get('/:id', getBlogById);
 router.get('/:id/comments', getComments);
 router.get('/:id/like-status', auth, getLikeStatus);
+router.put('/:id/view', incrementView);
+
 
 // ✅ Image upload route (admin only)
 router.post('/upload-image', 
@@ -52,7 +54,6 @@ router.post('/upload-image',
 router.post('/', auth, createBlog);
 router.put('/:id', auth, updateBlog);
 router.delete('/:id', auth, deleteBlog);
-router.put('/:id/view', auth, incrementView);
 
 // ✅ Blog management routes
 router.put('/:id/publish', auth, publishBlog);
