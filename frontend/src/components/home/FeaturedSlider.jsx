@@ -237,7 +237,7 @@ const FeaturedSlider = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           <i className="fas fa-fire text-orange-500 text-xl sm:text-2xl"></i>
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-            Weekly Popular
+           Latest Posts
           </h2>
           <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
             This Week
