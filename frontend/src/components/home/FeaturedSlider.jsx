@@ -11,7 +11,7 @@ const FeaturedSlider = () => {
   const [featuredPosts, setFeaturedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false); // new: show refreshing state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const trackRef = useRef(null);
   const containerRef = useRef(null);
@@ -35,56 +35,39 @@ const FeaturedSlider = () => {
     createdAt: post.createdAt || post.publishedAt,
   });
 
-  // ---------- fetch data ----------
-  const fetchWeeklyPopularPosts = useCallback(async (showRefresh = false) => {
+  // ---------- fetch data (now from /blogs with high limit) ----------
+  const fetchTrendingPosts = useCallback(async (showRefresh = false) => {
     try {
       if (showRefresh) setIsRefreshing(true);
       setError(null);
 
-      // Cancel previous request
       if (abortControllerRef.current) abortControllerRef.current.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const { data } = await axios.get('/blogs/popular', {
-        params: { limit: 10, days: 14, sortBy: 'views' },
+      // 1) Fetch a large batch of posts (no date filter) – adjust limit as needed
+      const { data } = await axios.get('/blogs', {
+        params: { limit: 20, sort: '-createdAt' }, // get latest 20
         signal: controller.signal,
       });
 
       if (!isMountedRef.current) return;
 
       let posts = [];
-
       if (data.success && data.data?.length > 0) {
         posts = data.data.map(transformPost);
-        posts.sort((a, b) => {
-          const scoreA = a.views * 0.5 + a.likes * 0.3 + a.commentCount * 0.2;
-          const scoreB = b.views * 0.5 + b.likes * 0.3 + b.commentCount * 0.2;
-          return scoreB - scoreA;
-        });
+        // Sort by views (most viewed first)
+        posts.sort((a, b) => b.views - a.views);
+        // Take top 6 (or whatever number you want)
         posts = posts.slice(0, 6);
       }
 
       if (posts.length === 0) {
-        const fallbackRes = await axios.get('/blogs', {
-          params: { limit: 6, sort: '-createdAt' },
-          signal: controller.signal,
-        });
-
-        if (!isMountedRef.current) return;
-
-        if (fallbackRes.data.success && fallbackRes.data.data?.length) {
-          posts = fallbackRes.data.data.map(transformPost);
-          posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-          toast('No popular posts this week, showing latest articles', { icon: '📰' });
-        } else {
-          setError('No posts available at the moment');
-          setFeaturedPosts([]);
-          return;
-        }
+        setError('No posts available at the moment');
+        setFeaturedPosts([]);
+        return;
       }
 
-      if (!isMountedRef.current) return;
       setFeaturedPosts(posts);
     } catch (err) {
       if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
@@ -106,19 +89,19 @@ const FeaturedSlider = () => {
   useEffect(() => {
     isMountedRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchWeeklyPopularPosts();
+    fetchTrendingPosts();
 
-    // Poll every 30 seconds to simulate live updates
+    // Poll every 30 seconds to refresh the list
     pollIntervalRef.current = setInterval(() => {
-      fetchWeeklyPopularPosts(true); // pass true to show refresh indicator
-    }, 30000); // 30 seconds – adjust as needed
+      fetchTrendingPosts(true);
+    }, 30000);
 
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) abortControllerRef.current.abort();
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [fetchWeeklyPopularPosts]);
+  }, [fetchTrendingPosts]);
 
   const totalSlides = featuredPosts.length;
 
@@ -224,7 +207,7 @@ const FeaturedSlider = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <i className="fas fa-star text-indigo-600 text-xl sm:text-2xl" />
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Weekly Popular</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Trending Now</h2>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4">
@@ -240,13 +223,13 @@ const FeaturedSlider = () => {
       <div className="mt-10 sm:mt-12 mb-5">
         <div className="flex items-center gap-2 sm:gap-3 mb-4">
           <i className="fas fa-star text-indigo-600 text-xl sm:text-2xl" />
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Weekly Popular</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Trending Now</h2>
         </div>
         <div className="bg-white rounded-2xl p-8 text-center border border-[#efedf5]">
           <i className="fas fa-exclamation-circle text-4xl text-red-400 mb-3" />
           <p className="text-[#6b6b84]">{error}</p>
           <button
-            onClick={() => fetchWeeklyPopularPosts()}
+            onClick={() => fetchTrendingPosts()}
             className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             Retry
@@ -268,7 +251,7 @@ const FeaturedSlider = () => {
           <i className="fas fa-newspaper text-4xl text-gray-300 mb-3" />
           <p className="text-[#6b6b84]">No posts available right now. Check back later!</p>
           <button
-            onClick={() => fetchWeeklyPopularPosts()}
+            onClick={() => fetchTrendingPosts()}
             className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             Refresh
@@ -281,7 +264,7 @@ const FeaturedSlider = () => {
   // ---------- slider ----------
   return (
     <div className="mt-10 sm:mt-12 mb-5">
-      {/* Header with Live badge */}
+      {/* Header with LIVE badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 sm:gap-3">
           <i className="fas fa-fire text-orange-500 text-xl sm:text-2xl" />
