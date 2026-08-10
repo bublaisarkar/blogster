@@ -54,10 +54,11 @@ export const uploadImage = async (req, res) => {
  */
 export const getBlogs = async (req, res) => {
   try {
-    const { status, category, search, page = 1, limit = 10, featured } = req.query;
+    // ✅ Accept both 'search' and 'q' parameters
+    const { status, category, search, q, page = 1, limit = 10, featured } = req.query;
     const query = {};
 
-    // Handle status filter
+    // Handle status filter (default to 'published')
     if (status) {
       if (status !== 'all') {
         query.status = status;
@@ -71,13 +72,14 @@ export const getBlogs = async (req, res) => {
       query.featured = featured === 'true';
     }
 
-    // Search filter
-    if (search) {
+    // ✅ Search filter – use either 'search' or 'q'
+    const searchTerm = search || q;
+    if (searchTerm && searchTerm.trim().length > 0) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { content: { $regex: search, $options: 'i' } },
-        { excerpt: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { content: { $regex: searchTerm, $options: 'i' } },
+        { excerpt: { $regex: searchTerm, $options: 'i' } },
+        { tags: { $in: [new RegExp(searchTerm, 'i')] } }
       ];
     }
 

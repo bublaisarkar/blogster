@@ -22,15 +22,16 @@ import {
   updateComment,
   getComments,
   incrementView,
-  uploadImage // ✅ Added uploadImage controller
+  uploadImage
 } from '../controllers/blogController.js';
 import { auth } from '../middleware/auth.js';
-import upload from '../middleware/upload.js'; // ✅ Import upload middleware
+import upload from '../middleware/upload.js';
 
 const router = express.Router();
 
 // ✅ Public routes
 router.get('/', getBlogs);
+router.get('/search', getBlogs); // 🔍 Search endpoint (uses query param 'q')
 router.get('/stats', auth, getBlogStats);
 router.get('/popular', getPopularBlogs);
 router.get('/latest', getLatestBlogs);
@@ -41,7 +42,6 @@ router.get('/:id', getBlogById);
 router.get('/:id/comments', getComments);
 router.get('/:id/like-status', auth, getLikeStatus);
 router.put('/:id/view', incrementView);
-
 
 // ✅ Image upload route (admin only)
 router.post('/upload-image', 

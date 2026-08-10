@@ -9,14 +9,14 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false); // ✅ new state
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const dropdownTimeoutRef = useRef(null);
   const profileDropdownTimeoutRef = useRef(null);
 
-  // Fetch categories from backend
+  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -37,12 +37,8 @@ const Navbar = () => {
   // Cleanup timeouts
   useEffect(() => {
     return () => {
-      if (dropdownTimeoutRef.current) {
-        clearTimeout(dropdownTimeoutRef.current);
-      }
-      if (profileDropdownTimeoutRef.current) {
-        clearTimeout(profileDropdownTimeoutRef.current);
-      }
+      if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current);
+      if (profileDropdownTimeoutRef.current) clearTimeout(profileDropdownTimeoutRef.current);
     };
   }, []);
 
@@ -58,42 +54,30 @@ const Navbar = () => {
 
   // Desktop dropdown handlers
   const handleCategoryMouseEnter = () => {
-    if (dropdownTimeoutRef.current) {
-      clearTimeout(dropdownTimeoutRef.current);
-      dropdownTimeoutRef.current = null;
-    }
+    if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current);
     setDropdownOpen(true);
   };
-
   const handleCategoryMouseLeave = () => {
-    dropdownTimeoutRef.current = setTimeout(() => {
-      setDropdownOpen(false);
-      dropdownTimeoutRef.current = null;
-    }, 300);
+    dropdownTimeoutRef.current = setTimeout(() => setDropdownOpen(false), 300);
   };
-
   const handleProfileMouseEnter = () => {
-    if (profileDropdownTimeoutRef.current) {
-      clearTimeout(profileDropdownTimeoutRef.current);
-      profileDropdownTimeoutRef.current = null;
-    }
+    if (profileDropdownTimeoutRef.current) clearTimeout(profileDropdownTimeoutRef.current);
     setProfileDropdownOpen(true);
   };
-
   const handleProfileMouseLeave = () => {
-    profileDropdownTimeoutRef.current = setTimeout(() => {
-      setProfileDropdownOpen(false);
-      profileDropdownTimeoutRef.current = null;
-    }, 300);
+    profileDropdownTimeoutRef.current = setTimeout(() => setProfileDropdownOpen(false), 300);
   };
+  const toggleProfileDropdown = () => setProfileDropdownOpen(!profileDropdownOpen);
+  const toggleMobileCategories = () => setMobileCategoriesOpen(!mobileCategoriesOpen);
 
-  const toggleProfileDropdown = () => {
-    setProfileDropdownOpen(!profileDropdownOpen);
-  };
-
-  // ✅ Toggle for mobile categories
-  const toggleMobileCategories = () => {
-    setMobileCategoriesOpen(!mobileCategoriesOpen);
+  // ✅ Search handler
+  const handleSearch = (e, inputName) => {
+    e.preventDefault();
+    const input = e.target.elements[inputName].value.trim();
+    if (input) {
+      navigate(`/search?q=${encodeURIComponent(input)}`);
+      setMobileOpen(false);
+    }
   };
 
   return (
@@ -168,9 +152,21 @@ const Navbar = () => {
 
       {/* Desktop right actions */}
       <div className="hidden md:flex items-center gap-2 lg:gap-3">
-        <NavLink to="/search" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-full transition">
-          <i className="fas fa-search"></i>
-        </NavLink>
+        {/* ✅ Desktop search form */}
+        <form 
+          onSubmit={(e) => handleSearch(e, 'searchInputDesktop')}
+          className="flex items-center bg-[#f0eff5] rounded-full px-3 py-1"
+        >
+          <input
+            name="searchInputDesktop"
+            type="text"
+            placeholder="Search..."
+            className="bg-transparent outline-none text-sm w-32 lg:w-40"
+          />
+          <button type="submit" className="text-[#6b6b84] hover:text-indigo-600 transition">
+            <i className="fas fa-search"></i>
+          </button>
+        </form>
 
         {isAuthenticated ? (
           <div 
@@ -210,7 +206,6 @@ const Navbar = () => {
                 >
                   <i className="fas fa-user-circle w-5 text-indigo-600"></i> My Profile
                 </NavLink>
-
                 {isAdmin && (
                   <NavLink 
                     to="/dashboard" 
@@ -220,14 +215,9 @@ const Navbar = () => {
                     <i className="fas fa-chart-pie w-5 text-indigo-600"></i> Admin Dashboard
                   </NavLink>
                 )}
-
                 <div className="border-t border-[#e6e6ed] my-1"></div>
-
                 <button 
-                  onClick={() => {
-                    handleLogout();
-                    setProfileDropdownOpen(false);
-                  }}
+                  onClick={() => { handleLogout(); setProfileDropdownOpen(false); }}
                   className="w-full text-left px-4 py-2 hover:bg-[#f0eff5] text-sm text-red-600 flex items-center gap-2"
                 >
                   <i className="fas fa-sign-out-alt w-5"></i> Logout
@@ -251,10 +241,26 @@ const Navbar = () => {
       {mobileOpen && (
         <div className="w-full md:hidden mt-3 pt-3 border-t border-[#e6e6ed] relative z-50 bg-white rounded-xl shadow-lg">
           <div className="flex flex-col gap-2 p-4 max-h-[80vh] overflow-y-auto">
+            {/* ✅ Mobile search form */}
+            <form 
+              onSubmit={(e) => handleSearch(e, 'searchInputMobile')}
+              className="flex items-center bg-[#f0eff5] rounded-lg px-3 py-2 mx-2 mb-1"
+            >
+              <input
+                name="searchInputMobile"
+                type="text"
+                placeholder="Search posts..."
+                className="bg-transparent outline-none text-sm flex-1"
+              />
+              <button type="submit" className="text-[#6b6b84] hover:text-indigo-600">
+                <i className="fas fa-search"></i>
+              </button>
+            </form>
+
             <NavLink to="/" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>Home</NavLink>
             <NavLink to="/articles" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>Articles</NavLink>
             
-            {/* ✅ Mobile Categories – collapsible */}
+            {/* Mobile Categories – collapsible */}
             <div className="px-3 py-1">
               <button
                 onClick={toggleMobileCategories}
@@ -279,7 +285,7 @@ const Navbar = () => {
                         }
                         onClick={() => {
                           setMobileOpen(false);
-                          setMobileCategoriesOpen(false); // close after selection
+                          setMobileCategoriesOpen(false);
                         }}
                       >
                         <span className="flex items-center gap-2">
@@ -302,8 +308,9 @@ const Navbar = () => {
             <NavLink to="/contact" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>Contact</NavLink>
             
             <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-[#e6e6ed]">
+              {/* The search link is now replaced by the search form above, but we keep a link to /search just in case */}
               <NavLink to="/search" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>
-                <i className="fas fa-search mr-2"></i>Search
+                <i className="fas fa-search mr-2"></i>Advanced Search
               </NavLink>
 
               {isAuthenticated ? (
@@ -325,17 +332,14 @@ const Navbar = () => {
                       <p className="text-xs text-[#6b6b84] capitalize">{user?.role || 'User'}</p>
                     </div>
                   </div>
-
                   <NavLink to="/profile" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>
                     <i className="fas fa-user-circle mr-2 w-5 text-indigo-600"></i> My Profile
                   </NavLink>
-                  
                   {isAdmin && (
                     <NavLink to="/dashboard" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>
                       <i className="fas fa-chart-pie mr-2 w-5 text-indigo-600"></i> Admin Dashboard
                     </NavLink>
                   )}
-
                   <button 
                     onClick={handleLogout}
                     className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition text-left"

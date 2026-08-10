@@ -23,6 +23,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import Search from './pages/Search';
 
 const App = () => {
   return (
@@ -63,6 +64,7 @@ const App = () => {
                   <Route path="/category/:slug" element={<CategoryPage />} />
                   <Route path="/blog/:id" element={<BlogDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/search" element={<Search />} />     
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                 </Route>
