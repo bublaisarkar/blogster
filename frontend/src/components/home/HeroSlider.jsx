@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import axios from '../../api/axios';
 import { Link } from 'react-router-dom';
 
-// ✅ Helper functions (moved outside component)
+// ---------- Helpers ----------
 const getPopularityBadge = (index, total) => {
   if (index === 0) return 'Most Popular';
   if (index === 1) return 'Trending';
@@ -38,97 +38,124 @@ const formatDate = (dateString) => {
   });
 };
 
+// ---------- Cache helpers ----------
+const getCachedSlides = () => {
+  try {
+    const cached = localStorage.getItem('heroSlides');
+    const timestamp = localStorage.getItem('heroSlidesTimestamp');
+    if (cached && timestamp) {
+      const age = Date.now() - parseInt(timestamp);
+      if (age < 5 * 60 * 1000) { // 5 minutes
+        return JSON.parse(cached);
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedSlides = (slides) => {
+  try {
+    localStorage.setItem('heroSlides', JSON.stringify(slides));
+    localStorage.setItem('heroSlidesTimestamp', Date.now().toString());
+  } catch {
+    // ignore storage errors
+  }
+};
+
 const HeroSlider = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ Fetch popular posts from backend
-  useEffect(() => {
-    const fetchPopularPosts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data } = await axios.get('/blogs/popular', {
-          params: {
-            limit: 5,
-            days: 30
-          }
-        });
+  // ---------- Fetch data ----------
+  const fetchPopularPosts = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoading(true);
+      setError(null);
+      
+      const { data } = await axios.get('/blogs/popular', {
+        params: {
+          limit: 5,
+          days: 30
+        }
+      });
 
-        if (data.success && data.data.length > 0) {
-          // ✅ Transform API response to match slider format
-          const formattedSlides = data.data.map((post, index) => ({
-            id: post._id || post.id || index,
-            badge: getPopularityBadge(index, data.data.length),
-            badgeColor: getBadgeColor(index),
-            badgeIcon: getBadgeIcon(index),
-            title: post.title || 'Untitled Post',
-            description: post.excerpt || post.content?.substring(0, 150) || 'No description available',
-            date: formatDate(post.createdAt || post.publishedAt),
-            readTime: `${Math.ceil((post.content?.length || 0) / 1000)} min read`,
-            comments: `${post.commentCount || post.comments?.length || 0} comments`,
-            image: post.coverImage || post.thumbnail,
-            alt: post.title || 'Blog post',
-            slug: post.slug || post._id,
-            author: post.author?.name || 'Anonymous'
-          }));
-          
-          // ✅ Filter out slides without images
-          const slidesWithImages = formattedSlides.filter(slide => slide.image);
-          
-          if (slidesWithImages.length > 0) {
-            setSlides(slidesWithImages);
-          } else {
-            setError('No posts with images available');
-            setSlides([]);
-          }
+      if (data.success && data.data.length > 0) {
+        const formattedSlides = data.data.map((post, index) => ({
+          id: post._id || post.id || index,
+          badge: getPopularityBadge(index, data.data.length),
+          badgeColor: getBadgeColor(index),
+          badgeIcon: getBadgeIcon(index),
+          title: post.title || 'Untitled Post',
+          description: post.excerpt || post.content?.substring(0, 150) || 'No description available',
+          date: formatDate(post.createdAt || post.publishedAt),
+          readTime: `${Math.ceil((post.content?.length || 0) / 1000)} min read`,
+          comments: `${post.commentCount || post.comments?.length || 0} comments`,
+          image: post.coverImage || post.thumbnail,
+          alt: post.title || 'Blog post',
+          slug: post.slug || post._id,
+          author: post.author?.name || 'Anonymous'
+        }));
+        
+        const slidesWithImages = formattedSlides.filter(slide => slide.image);
+        if (slidesWithImages.length > 0) {
+          setSlides(slidesWithImages);
+          setCachedSlides(slidesWithImages);
+          setError(null);
         } else {
-          setError('No popular posts found');
+          setError('No posts with images available');
           setSlides([]);
         }
-      } catch (err) {
-        console.error('Error fetching popular posts:', err);
+      } else {
+        setError('No popular posts found');
+        setSlides([]);
+      }
+    } catch (err) {
+      console.error('Error fetching popular posts:', err);
+      if (!isBackground) {
         setError('Failed to load popular posts');
         setSlides([]);
         toast.error('Could not load popular posts');
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchPopularPosts();
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
   }, []);
 
-  // ✅ Auto-slide effect
+  // ---------- Initial load with cache ----------
+  useEffect(() => {
+    // Check cache first
+    const cached = getCachedSlides();
+    if (cached && cached.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSlides(cached);
+      setLoading(false); // data is ready instantly
+      // Fetch fresh data in background
+      fetchPopularPosts(true);
+    } else {
+      // No cache – load from API
+      fetchPopularPosts(false);
+    }
+  }, [fetchPopularPosts]);
+
+  // ---------- Auto-slide ----------
   useEffect(() => {
     if (slides.length === 0) return;
-    
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length);
     }, 5000);
-    
     return () => clearInterval(interval);
   }, [slides.length]);
 
-  const goToSlide = (index) => {
-    setCurrentIndex(index);
-  };
+  const goToSlide = (index) => setCurrentIndex(index);
+  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % slides.length);
+  const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
 
-  const nextSlide = () => {
-    if (slides.length === 0) return;
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    if (slides.length === 0) return;
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + slides.length) % slides.length);
-  };
-
-  // ✅ Loading state
-  if (loading) {
+  // ---------- Loading state ----------
+  if (loading && slides.length === 0) {
     return (
       <div className="relative mt-6 rounded-3xl overflow-hidden bg-white shadow-lg">
         <div className="flex items-center justify-center h-64 md:h-80">
@@ -141,7 +168,7 @@ const HeroSlider = () => {
     );
   }
 
-  // ✅ Error or no slides state
+  // ---------- Error or no slides ----------
   if (error || slides.length === 0) {
     return (
       <div className="relative mt-6 rounded-3xl overflow-hidden bg-white shadow-lg">
@@ -155,6 +182,7 @@ const HeroSlider = () => {
     );
   }
 
+  // ---------- Main render ----------
   return (
     <div className="relative mt-6 rounded-3xl overflow-hidden bg-white shadow-lg">
       <div className="relative flex overflow-hidden rounded-3xl">
@@ -195,14 +223,24 @@ const HeroSlider = () => {
                   </span>
                 </div>
               </div>
-              <div className="flex-1 w-full h-48 sm:h-56 md:h-auto order-1 md:order-2">
+              <div className="flex-1 w-full h-48 sm:h-56 md:h-auto order-1 md:order-2 relative bg-gray-200">
                 <img 
                   src={slide.image} 
                   alt={slide.alt} 
                   className="w-full h-full object-cover"
+                  width="800"
+                  height="400"
                   loading="lazy"
+                  decoding="async"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.onerror = null;
+                    const parent = e.target.parentElement;
+                    const initials = slide.title.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    const fallback = document.createElement('div');
+                    fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-indigo-50 text-4xl font-bold text-indigo-600';
+                    fallback.textContent = initials || '📝';
+                    parent.innerHTML = '';
+                    parent.appendChild(fallback);
                   }}
                 />
               </div>
