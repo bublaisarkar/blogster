@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
@@ -12,125 +12,145 @@ const FeaturedSlider = () => {
   const [error, setError] = useState(null);
   const trackRef = useRef(null);
   const containerRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // Fetch weekly popular posts from backend
-  useEffect(() => {
-    const fetchWeeklyPopularPosts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const transformPost = (post) => ({
+    id: post._id || post.id,
+    image: post.coverImage || post.thumbnail || '/images/placeholder-blog.jpg',
+    alt: post.title || 'Blog post',
+    category: post.category || post.tags?.[0] || 'General',
+    title: post.title || 'Untitled Post',
+    description: post.excerpt || post.content?.substring(0, 120) || 'No description available',
+    author: post.author?.name || 'Anonymous',
+    likes: post.likes || post.likeCount || 0,
+    slug: post.slug || post._id,
+    views: post.views || 0,
+    commentCount: post.commentCount || post.comments?.length || 0,
+    createdAt: post.createdAt || post.publishedAt,
+  });
 
-        const { data } = await axios.get('/blogs/popular', {
-          params: {
-            limit: 10,
-            days: 7,
-            sortBy: 'views'
-          }
+  const fetchWeeklyPopularPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const { data } = await axios.get('/blogs/popular', {
+        params: { limit: 10, days: 14, sortBy: 'views' },
+        signal: controller.signal,
+      });
+
+      if (!isMountedRef.current) return;
+
+      let posts = [];
+
+      if (data.success && data.data?.length > 0) {
+        posts = data.data.map(transformPost);
+        posts.sort((a, b) => {
+          const scoreA = a.views * 0.5 + a.likes * 0.3 + a.commentCount * 0.2;
+          const scoreB = b.views * 0.5 + b.likes * 0.3 + b.commentCount * 0.2;
+          return scoreB - scoreA;
+        });
+        posts = posts.slice(0, 6);
+      }
+
+      if (posts.length === 0) {
+        const fallbackRes = await axios.get('/blogs', {
+          params: { limit: 6, sort: '-createdAt' },
+          signal: controller.signal,
         });
 
-        if (data.success && data.data.length > 0) {
-          // ✅ Transform and filter posts with images
-          const formattedPosts = data.data
-            .map((post) => ({
-              id: post._id || post.id,
-              image: post.coverImage || post.thumbnail,
-              alt: post.title || 'Blog post',
-              category: post.category || post.tags?.[0] || 'General',
-              title: post.title || 'Untitled Post',
-              description: post.excerpt || post.content?.substring(0, 120) || 'No description available',
-              author: post.author?.name || 'Anonymous',
-              likes: post.likes || post.likeCount || 0,
-              slug: post.slug || post._id,
-              views: post.views || 0,
-              commentCount: post.commentCount || post.comments?.length || 0,
-              createdAt: post.createdAt || post.publishedAt
-            }))
-            .filter(post => post.image); // ✅ Only keep posts with images
+        if (!isMountedRef.current) return;
 
-          // Sort by views (most popular first)
-          formattedPosts.sort((a, b) => b.views - a.views);
-          
-          // Take top 6 posts for slider
-          const topPosts = formattedPosts.slice(0, 6);
-          
-          if (topPosts.length > 0) {
-            setFeaturedPosts(topPosts);
-          } else {
-            setError('No popular posts with images available');
-            setFeaturedPosts([]);
-          }
+        if (fallbackRes.data.success && fallbackRes.data.data?.length) {
+          posts = fallbackRes.data.data.map(transformPost);
+          posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          toast('No popular posts this week, showing latest articles', { icon: '📰' });
         } else {
-          setError('No popular posts found');
+          setError('No posts available at the moment');
           setFeaturedPosts([]);
+          return;
         }
-      } catch {
-        // ✅ Removed unused 'err' parameter
-        console.error('Error fetching weekly popular posts');
-        setError('Failed to load popular posts');
-        setFeaturedPosts([]);
-        toast.error('Could not load weekly popular posts');
-      } finally {
+      }
+
+      if (!isMountedRef.current) return;
+      setFeaturedPosts(posts);
+    } catch (err) {
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
+      console.error('Error fetching posts:', err);
+      if (!isMountedRef.current) return;
+      setError('Failed to load posts. Please try again.');
+      setFeaturedPosts([]);
+      toast.error('Could not load posts');
+    } finally {
+      if (isMountedRef.current) {
         setLoading(false);
       }
-    };
-
-    fetchWeeklyPopularPosts();
+      abortControllerRef.current = null;
+    }
   }, []);
+
+  // Initial fetch – disable the lint rule for this specific call
+  useEffect(() => {
+    isMountedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchWeeklyPopularPosts();
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchWeeklyPopularPosts]);
 
   const totalSlides = featuredPosts.length;
 
-  // Update slides per view based on screen size
   useEffect(() => {
     const updateSlidesPerView = () => {
       if (window.innerWidth < 480) setSlidesPerView(1);
       else if (window.innerWidth < 768) setSlidesPerView(2);
       else setSlidesPerView(3);
     };
-
     updateSlidesPerView();
     window.addEventListener('resize', updateSlidesPerView);
     return () => window.removeEventListener('resize', updateSlidesPerView);
   }, []);
 
-  // Calculate slide width whenever slidesPerView changes
   useEffect(() => {
     if (containerRef.current && featuredPosts.length > 0) {
       const containerWidth = containerRef.current.offsetWidth;
       const gap = slidesPerView === 1 ? 0 : slidesPerView === 2 ? 16 : 24;
-      const newSlideWidth = (containerWidth - (gap * (slidesPerView - 1))) / slidesPerView;
+      const newSlideWidth = (containerWidth - gap * (slidesPerView - 1)) / slidesPerView;
       setSlideWidth(newSlideWidth);
     }
   }, [slidesPerView, featuredPosts]);
 
-  // Update slide width on resize
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current && featuredPosts.length > 0) {
         const containerWidth = containerRef.current.offsetWidth;
         const gap = slidesPerView === 1 ? 0 : slidesPerView === 2 ? 16 : 24;
-        const newSlideWidth = (containerWidth - (gap * (slidesPerView - 1))) / slidesPerView;
+        const newSlideWidth = (containerWidth - gap * (slidesPerView - 1)) / slidesPerView;
         setSlideWidth(newSlideWidth);
       }
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [slidesPerView, featuredPosts]);
 
-  // Auto-slide effect
   useEffect(() => {
     if (featuredPosts.length === 0) return;
-    
     const maxIndex = Math.max(0, totalSlides - slidesPerView);
     if (maxIndex === 0) return;
-
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => {
-        if (prev < maxIndex) return prev + 1;
-        return 0;
-      });
+      setCurrentIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
     }, 4000);
-    
     return () => clearInterval(interval);
   }, [totalSlides, slidesPerView, featuredPosts]);
 
@@ -141,27 +161,20 @@ const FeaturedSlider = () => {
 
   const nextSlide = () => {
     const maxIndex = Math.max(0, totalSlides - slidesPerView);
-    setCurrentIndex((prev) => {
-      if (prev < maxIndex) return prev + 1;
-      return 0;
-    });
+    setCurrentIndex((prev) => (prev < maxIndex ? prev + 1 : 0));
   };
 
   const prevSlide = () => {
     const maxIndex = Math.max(0, totalSlides - slidesPerView);
-    setCurrentIndex((prev) => {
-      if (prev > 0) return prev - 1;
-      return maxIndex;
-    });
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : maxIndex));
   };
 
-  // Calculate translation in pixels
   const getTranslateX = () => {
     const gap = slidesPerView === 1 ? 0 : slidesPerView === 2 ? 16 : 24;
     return -(currentIndex * (slideWidth + gap));
   };
 
-  // Loading state
+  // ---------- LOADING ----------
   if (loading) {
     return (
       <div className="mt-10 sm:mt-12 mb-5">
@@ -192,7 +205,7 @@ const FeaturedSlider = () => {
     );
   }
 
-  // Error state
+  // ---------- ERROR ----------
   if (error && featuredPosts.length === 0) {
     return (
       <div className="mt-10 sm:mt-12 mb-5">
@@ -203,8 +216,8 @@ const FeaturedSlider = () => {
         <div className="bg-white rounded-2xl p-8 text-center border border-[#efedf5]">
           <i className="fas fa-exclamation-circle text-4xl text-red-400 mb-3"></i>
           <p className="text-[#6b6b84]">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
+          <button
+            onClick={fetchWeeklyPopularPosts}
             className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             Retry
@@ -214,22 +227,29 @@ const FeaturedSlider = () => {
     );
   }
 
-  // No posts state
+  // ---------- EMPTY ----------
   if (featuredPosts.length === 0) {
     return (
       <div className="mt-10 sm:mt-12 mb-5">
         <div className="flex items-center gap-2 sm:gap-3 mb-4">
-          <i className="fas fa-star text-indigo-600 text-xl sm:text-2xl"></i>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Weekly Popular</h2>
+          <i className="fas fa-fire text-orange-500 text-xl sm:text-2xl"></i>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Latest Posts</h2>
         </div>
         <div className="bg-white rounded-2xl p-8 text-center border border-[#efedf5]">
-          <i className="fas fa-fire text-4xl text-gray-300 mb-3"></i>
-          <p className="text-[#6b6b84]">No popular posts this week</p>
+          <i className="fas fa-newspaper text-4xl text-gray-300 mb-3"></i>
+          <p className="text-[#6b6b84]">No posts available right now. Check back later!</p>
+          <button
+            onClick={fetchWeeklyPopularPosts}
+            className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          >
+            Refresh
+          </button>
         </div>
       </div>
     );
   }
 
+  // ---------- SLIDER ----------
   return (
     <div className="mt-10 sm:mt-12 mb-5">
       {/* Header */}
@@ -237,7 +257,7 @@ const FeaturedSlider = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           <i className="fas fa-fire text-orange-500 text-xl sm:text-2xl"></i>
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-           Latest Posts
+            {error ? 'Latest Posts' : 'Weekly Popular'}
           </h2>
           <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
             This Week
@@ -245,14 +265,14 @@ const FeaturedSlider = () => {
         </div>
         {featuredPosts.length > slidesPerView && (
           <div className="flex gap-1 sm:gap-2">
-            <button 
+            <button
               onClick={prevSlide}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[#e6e6ed] bg-white hover:bg-[#f0eff5] transition flex items-center justify-center text-xs sm:text-sm"
               aria-label="Previous slides"
             >
               <i className="fas fa-chevron-left"></i>
             </button>
-            <button 
+            <button
               onClick={nextSlide}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[#e6e6ed] bg-white hover:bg-[#f0eff5] transition flex items-center justify-center text-xs sm:text-sm"
               aria-label="Next slides"
@@ -264,39 +284,30 @@ const FeaturedSlider = () => {
       </div>
 
       {/* Slider */}
-      <div 
-        ref={containerRef}
-        className="relative mt-4 overflow-hidden"
-      >
-        <div 
+      <div ref={containerRef} className="relative mt-4 overflow-hidden">
+        <div
           ref={trackRef}
           className="flex gap-4 sm:gap-6 transition-transform duration-500 ease-in-out"
-          style={{ 
-            transform: `translateX(${getTranslateX()}px)`,
-          }}
+          style={{ transform: `translateX(${getTranslateX()}px)` }}
         >
           {featuredPosts.map((post) => (
             <Link
               key={post.id}
               to={`/blog/${post.slug}`}
               className="flex-shrink-0 group"
-              style={{ 
-                width: slideWidth ? `${slideWidth}px` : 'auto',
-              }}
+              style={{ width: slideWidth ? `${slideWidth}px` : 'auto' }}
             >
               <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#efedf5] hover:shadow-lg transition-all duration-300 flex flex-col h-full group-hover:border-indigo-200">
                 <div className="relative overflow-hidden">
-                  {/* ✅ Only render image if it exists */}
-                  {post.image && (
-                    <img 
-                      src={post.image} 
-                      alt={post.alt} 
-                      className="w-full h-40 sm:h-48 md:h-52 object-cover transition-transform duration-500 group-hover:scale-105" 
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  )}
+                  <img
+                    src={post.image}
+                    alt={post.alt}
+                    className="w-full h-40 sm:h-48 md:h-52 object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      e.target.src =
+                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"%3E%3Crect width="400" height="200" fill="%23e5e7eb"/%3E%3Ctext x="50%25" y="50%25" font-family="sans-serif" font-size="16" fill="%236b7280" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+                    }}
+                  />
                   <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
                     <i className="fas fa-eye mr-1"></i> {post.views || 0}
                   </div>
@@ -338,9 +349,7 @@ const FeaturedSlider = () => {
             <button
               key={idx}
               className={`h-2 rounded-full transition-all duration-200 ${
-                currentIndex === idx 
-                  ? 'bg-indigo-600 w-7' 
-                  : 'bg-[#d1d0db] hover:bg-indigo-400 w-2.5'
+                currentIndex === idx ? 'bg-indigo-600 w-7' : 'bg-[#d1d0db] hover:bg-indigo-400 w-2.5'
               }`}
               onClick={() => goToSlide(idx)}
               aria-label={`Go to slide ${idx + 1}`}
