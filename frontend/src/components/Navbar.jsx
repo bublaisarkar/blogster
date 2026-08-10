@@ -9,14 +9,14 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false); // ✅ new state
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // ✅ Ref for dropdown timeout
   const dropdownTimeoutRef = useRef(null);
   const profileDropdownTimeoutRef = useRef(null);
 
-  // ✅ Fetch categories from backend
+  // Fetch categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -34,7 +34,7 @@ const Navbar = () => {
     fetchCategories();
   }, []);
 
-  // ✅ Cleanup timeouts on unmount
+  // Cleanup timeouts
   useEffect(() => {
     return () => {
       if (dropdownTimeoutRef.current) {
@@ -56,7 +56,7 @@ const Navbar = () => {
     setProfileDropdownOpen(false);
   };
 
-  // ✅ Category dropdown handlers with delay
+  // Desktop dropdown handlers
   const handleCategoryMouseEnter = () => {
     if (dropdownTimeoutRef.current) {
       clearTimeout(dropdownTimeoutRef.current);
@@ -69,10 +69,9 @@ const Navbar = () => {
     dropdownTimeoutRef.current = setTimeout(() => {
       setDropdownOpen(false);
       dropdownTimeoutRef.current = null;
-    }, 300); // ✅ 300ms delay before closing
+    }, 300);
   };
 
-  // ✅ Profile dropdown handlers with delay
   const handleProfileMouseEnter = () => {
     if (profileDropdownTimeoutRef.current) {
       clearTimeout(profileDropdownTimeoutRef.current);
@@ -85,12 +84,16 @@ const Navbar = () => {
     profileDropdownTimeoutRef.current = setTimeout(() => {
       setProfileDropdownOpen(false);
       profileDropdownTimeoutRef.current = null;
-    }, 300); // ✅ 300ms delay before closing
+    }, 300);
   };
 
-  // ✅ Toggle profile dropdown on click (for mobile)
   const toggleProfileDropdown = () => {
     setProfileDropdownOpen(!profileDropdownOpen);
+  };
+
+  // ✅ Toggle for mobile categories
+  const toggleMobileCategories = () => {
+    setMobileCategoriesOpen(!mobileCategoriesOpen);
   };
 
   return (
@@ -114,7 +117,7 @@ const Navbar = () => {
         <NavLink to="/" className={navLinkClass}>Home</NavLink>
         <NavLink to="/articles" className={navLinkClass}>Articles</NavLink>
         
-        {/* ✅ Categories Dropdown - With delay on close */}
+        {/* Categories Dropdown - Desktop */}
         <div 
           className="relative"
           onMouseEnter={handleCategoryMouseEnter}
@@ -169,7 +172,6 @@ const Navbar = () => {
           <i className="fas fa-search"></i>
         </NavLink>
 
-        {/* Show different buttons based on auth status */}
         {isAuthenticated ? (
           <div 
             className="relative"
@@ -195,7 +197,6 @@ const Navbar = () => {
               <i className="fas fa-chevron-down text-xs"></i>
             </button>
 
-            {/* Profile Dropdown */}
             {profileDropdownOpen && (
               <div 
                 className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-[#e6e6ed] py-2 z-[999]"
@@ -246,44 +247,55 @@ const Navbar = () => {
         )}
       </div>
 
-      {/* Mobile menu */}
+      {/* ---------- Mobile Menu ---------- */}
       {mobileOpen && (
         <div className="w-full md:hidden mt-3 pt-3 border-t border-[#e6e6ed] relative z-50 bg-white rounded-xl shadow-lg">
           <div className="flex flex-col gap-2 p-4 max-h-[80vh] overflow-y-auto">
             <NavLink to="/" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>Home</NavLink>
             <NavLink to="/articles" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>Articles</NavLink>
             
-            {/* Mobile Categories */}
+            {/* ✅ Mobile Categories – collapsible */}
             <div className="px-3 py-1">
-              <p className="text-xs font-semibold text-[#6b6b84] uppercase tracking-wider mb-1">Categories</p>
-              <div className="flex flex-col gap-0.5">
-                {loading ? (
-                  <div className="text-sm text-[#6b6b84] py-1">Loading...</div>
-                ) : categories.length > 0 ? (
-                  categories.map((category) => (
-                    <NavLink
-                      key={category._id}
-                      to={`/category/${category.slug || category._id}`}
-                      className={({ isActive }) =>
-                        `text-sm px-2 py-1.5 rounded-lg transition ${
-                          isActive ? 'text-indigo-600 bg-[#f0eff5]' : 'text-[#2d2d3f] hover:bg-[#f0eff5]'
-                        }`
-                      }
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span 
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: category.color || '#6366f1' }}
-                        />
-                        {category.name}
-                      </span>
-                    </NavLink>
-                  ))
-                ) : (
-                  <div className="text-sm text-[#6b6b84] py-1">No categories</div>
-                )}
-              </div>
+              <button
+                onClick={toggleMobileCategories}
+                className="flex items-center justify-between w-full text-left text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-2 py-2 rounded-lg transition"
+              >
+                <span>Categories</span>
+                <i className={`fas fa-chevron-down text-xs transition-transform duration-200 ${mobileCategoriesOpen ? 'rotate-180' : ''}`}></i>
+              </button>
+              {mobileCategoriesOpen && (
+                <div className="mt-1 ml-2 flex flex-col gap-0.5 border-l-2 border-indigo-200 pl-3">
+                  {loading ? (
+                    <div className="text-sm text-[#6b6b84] py-1">Loading...</div>
+                  ) : categories.length > 0 ? (
+                    categories.map((category) => (
+                      <NavLink
+                        key={category._id}
+                        to={`/category/${category.slug || category._id}`}
+                        className={({ isActive }) =>
+                          `text-sm px-2 py-1.5 rounded-lg transition ${
+                            isActive ? 'text-indigo-600 bg-[#f0eff5]' : 'text-[#2d2d3f] hover:bg-[#f0eff5]'
+                          }`
+                        }
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setMobileCategoriesOpen(false); // close after selection
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span 
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category.color || '#6366f1' }}
+                          />
+                          {category.name}
+                        </span>
+                      </NavLink>
+                    ))
+                  ) : (
+                    <div className="text-sm text-[#6b6b84] py-1">No categories</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <NavLink to="/about" className="text-sm font-medium text-[#2d2d3f] hover:bg-[#f0eff5] px-3 py-2 rounded-lg transition" onClick={() => setMobileOpen(false)}>About</NavLink>
