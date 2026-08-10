@@ -7,15 +7,17 @@ const FeaturedSlider = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slidesPerView, setSlidesPerView] = useState(3);
   const [slideWidth, setSlideWidth] = useState(0);
-  const [gap, setGap] = useState(24); // store actual gap
+  const [gap, setGap] = useState(24);
   const [featuredPosts, setFeaturedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false); // new: show refreshing state
 
   const trackRef = useRef(null);
   const containerRef = useRef(null);
   const abortControllerRef = useRef(null);
   const isMountedRef = useRef(true);
+  const pollIntervalRef = useRef(null);
 
   // ---------- transform helper ----------
   const transformPost = (post) => ({
@@ -34,11 +36,12 @@ const FeaturedSlider = () => {
   });
 
   // ---------- fetch data ----------
-  const fetchWeeklyPopularPosts = useCallback(async () => {
+  const fetchWeeklyPopularPosts = useCallback(async (showRefresh = false) => {
     try {
-      setLoading(true);
+      if (showRefresh) setIsRefreshing(true);
       setError(null);
 
+      // Cancel previous request
       if (abortControllerRef.current) abortControllerRef.current.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -91,19 +94,29 @@ const FeaturedSlider = () => {
       setFeaturedPosts([]);
       toast.error('Could not load posts');
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
       abortControllerRef.current = null;
     }
   }, []);
 
-  // ---------- initial fetch ----------
+  // ---------- initial fetch and polling ----------
   useEffect(() => {
     isMountedRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWeeklyPopularPosts();
+
+    // Poll every 30 seconds to simulate live updates
+    pollIntervalRef.current = setInterval(() => {
+      fetchWeeklyPopularPosts(true); // pass true to show refresh indicator
+    }, 30000); // 30 seconds – adjust as needed
+
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [fetchWeeklyPopularPosts]);
 
@@ -128,8 +141,7 @@ const FeaturedSlider = () => {
     const containerWidth = containerRef.current.offsetWidth;
     if (containerWidth === 0) return;
 
-    // Read actual gap from the track (or fallback to default)
-    let actualGap = 24; // default for >768px
+    let actualGap = 24;
     if (trackRef.current) {
       const computed = getComputedStyle(trackRef.current);
       const gapValue = parseFloat(computed.columnGap || computed.gap) || 0;
@@ -141,7 +153,6 @@ const FeaturedSlider = () => {
     setSlideWidth(Math.max(0, newSlideWidth));
   }, [slidesPerView, featuredPosts]);
 
-  // Recalculate when slidesPerView or posts change, and on resize
   useEffect(() => {
     updateDimensions();
     const handleResize = () => updateDimensions();
@@ -149,7 +160,6 @@ const FeaturedSlider = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [updateDimensions]);
 
-  // Also observe container size changes (e.g., parent layout shifts)
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(() => updateDimensions());
@@ -236,7 +246,7 @@ const FeaturedSlider = () => {
           <i className="fas fa-exclamation-circle text-4xl text-red-400 mb-3" />
           <p className="text-[#6b6b84]">{error}</p>
           <button
-            onClick={fetchWeeklyPopularPosts}
+            onClick={() => fetchWeeklyPopularPosts()}
             className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             Retry
@@ -258,7 +268,7 @@ const FeaturedSlider = () => {
           <i className="fas fa-newspaper text-4xl text-gray-300 mb-3" />
           <p className="text-[#6b6b84]">No posts available right now. Check back later!</p>
           <button
-            onClick={fetchWeeklyPopularPosts}
+            onClick={() => fetchWeeklyPopularPosts()}
             className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             Refresh
@@ -271,16 +281,23 @@ const FeaturedSlider = () => {
   // ---------- slider ----------
   return (
     <div className="mt-10 sm:mt-12 mb-5">
-      {/* Header */}
+      {/* Header with Live badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 sm:gap-3">
           <i className="fas fa-fire text-orange-500 text-xl sm:text-2xl" />
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-            {error ? 'Latest Posts' : 'Weekly Popular'}
+            {error ? 'Latest Posts' : 'Trending Now'}
           </h2>
-          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-            This Week
+          <span className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+            LIVE
           </span>
+          {isRefreshing && (
+            <span className="text-xs text-gray-400 animate-pulse">updating...</span>
+          )}
         </div>
         {featuredPosts.length > slidesPerView && (
           <div className="flex gap-1 sm:gap-2">
@@ -364,7 +381,7 @@ const FeaturedSlider = () => {
         </div>
       </div>
 
-      {/* Dots for navigation */}
+      {/* Dots */}
       {featuredPosts.length > slidesPerView && (
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: Math.max(0, totalSlides - slidesPerView + 1) }).map((_, idx) => (
